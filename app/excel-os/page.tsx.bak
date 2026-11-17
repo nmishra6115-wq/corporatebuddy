@@ -1,0 +1,468 @@
+﻿"use client";
+
+import React, { useEffect, useMemo, useState } from "react";
+import {
+  buildExcelFormulaRecommendation,
+  buildGroupSummary,
+  cleanTableNonDestructive,
+  compareTwoTables,
+  inspectDataQuality,
+  parseCsvOrTsv,
+  ParsedTable,
+  SavedExcelWorkflow,
+  toCsvString,
+} from "@/lib/excelOsEngine";
+
+type ExcelOsMode = "command" | "clean" | "compare" | "report" | "formula";
+
+const SAMPLE_PRIMARY_CSV = `Case_ID,Employee,Team,Productivity_Pct,Age_Days,Status
+C-101,Rohan Sharma,KYC,94,1,Completed
+C-102,Priya Nair,KYC,84,4,Pending
+C-103,Amit Verma,AML,88,5,Pending
+C-104,Neha Kulkarni,AML,96,1,Completed
+C-105,Suresh Rao,Sanctions,82,2,Pending`;
+
+const SAMPLE_COMPARE_CSV = `Case_ID,Employee,Team,Productivity_Pct,Age_Days,Status
+C-101,Rohan Sharma,KYC,94,1,Completed
+C-102,Priya Nair,KYC,84,5,Escalated
+C-103,Amit Verma,AML,88,5,Pending
+C-104,Neha Kulkarni,AML,96,1,Completed
+C-106,Kavita Menon,KYC,91,1,Completed`;
+
+export default function ExcelOsPage() {
+  const [mode, setMode] = useState<ExcelOsMode>("command");
+  const [fileName, setFileName] = useState<string>("productivity_report.csv");
+  const [compareFileName, setCompareFileName] = useState<string>("yesterday_report.csv");
+
+  const [primaryText, setPrimaryText] = useState<string>(SAMPLE_PRIMARY_CSV);
+  const [compareText, setCompareText] = useState<string>(SAMPLE_COMPARE_CSV);
+
+  const [instruction, setInstruction] = useState<string>(
+    "Find employees below 90% productivity, identify pending cases older than 3 days, prepare a team-wise summary and highlight SLA risks."
+  );
+  const [keyColumn, setKeyColumn] = useState<string>("Case_ID");
+  const [groupColumn, setGroupColumn] = useState<string>("Team");
+
+  const [workflows, setWorkflows] = useState<SavedExcelWorkflow[]>([]);
+  const [workflowName, setWorkflowName] = useState<string>("Daily SLA & Ageing Triage");
+  const [statusBanner, setStatusBanner] = useState<string>("Original workbook preserved (copy-first mode)");
+  const [copiedDraft, setCopiedDraft] = useState<boolean>(false);
+
+  useEffect(() => {
+    fetch("/api/excel-os", { cache: "no-store" })
+      .then((r) => r.json())
+      .then((data: { workflows?: SavedExcelWorkflow[] }) => {
+        if (Array.isArray(data.workflows) && data.workflows.length > 0) {
+          setWorkflows(data.workflows);
+        }
+      })
+      .catch(() => {});
+  }, []);
+
+  const primaryTable: ParsedTable = useMemo(
+    () => parseCsvOrTsv(primaryText, fileName || "Primary"),
+    [primaryText, fileName]
+  );
+
+  const compareTable: ParsedTable = useMemo(
+    () => parseCsvOrTsv(compareText, compareFileName || "Baseline"),
+    [compareText, compareFileName]
+  );
+
+  const qualityFindings = useMemo(
+    () => inspectDataQuality(primaryTable, keyColumn),
+    [primaryTable, keyColumn]
+  );
+
+  const cleanedResult = useMemo(
+    () => cleanTableNonDestructive(primaryTable),
+    [primaryTable]
+  );
+
+  const diffSummary = useMemo(
+    () => compareTwoTables(compareTable, primaryTable, keyColumn),
+    [compareTable, primaryTable, keyColumn]
+  );
+
+  const groupRollup = useMemo(
+    () => buildGroupSummary(primaryTable, groupColumn),
+    [primaryTable, groupColumn]
+  );
+
+  const formulaHelp = useMemo(
+    () => buildExcelFormulaRecommendation(instruction),
+    [instruction]
+  );
+
+  const exceptionRows = useMemo(() => {
+    return primaryTable.rows.filter((r) => {
+      const prod = Number(r["Productivity_Pct"] ?? r["productivity"] ?? "100");
+      const age = Number(r["Age_Days"] ?? r["age"] ?? "0");
+      const status = String(r["Status"] ?? "").toLowerCase();
+      return (Number.isFinite(prod) && prod < 90) || (Number.isFinite(age) && age > 3) || status.includes("pending") || status.includes("escalat");
+    });
+  }, [primaryTable]);
+
+  const managementDraft = useMemo(() => {
+    const topGroups = groupRollup
+      .slice(0, 4)
+      .map((g) => `${g.group}: ${g.count} (${g.pct}%)`)
+      .join(" | ");
+    return [
+      `Subject: Management Summary — ${fileName}`,
+      "",
+      `Overview: Analyzed ${primaryTable.rows.length} records across ${primaryTable.headers.length} columns.`,
+      `Group Breakdown (${groupColumn}): ${topGroups || "N/A"}`,
+      `Exceptions & SLA Risks Flagged: ${exceptionRows.length} item(s)`,
+      `Data Quality Checks: ${qualityFindings.length} finding(s) detected (0 source rows deleted)`,
+      "",
+      "Recommended Actions:",
+      exceptionRows.length > 0
+        ? `- Prioritize ${exceptionRows.length} flagged item(s) below threshold or exceeding SLA ageing.`
+        : "- All tracked items are within target thresholds.",
+      "- Review cleaned export file before sharing with stakeholders.",
+    ].join("\n");
+  }, [fileName, primaryTable, groupColumn, groupRollup, exceptionRows.length, qualityFindings.length]);
+
+  async function handleFileUpload(e: React.ChangeEvent<HTMLInputElement>, target: "primary" | "compare") {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    const text = await file.text();
+    if (target === "primary") {
+      setFileName(file.name);
+      setPrimaryText(text);
+      setStatusBanner(`Loaded ${file.name} into a working copy.`);
+    } else {
+      setCompareFileName(file.name);
+      setCompareText(text);
+      setStatusBanner(`Loaded baseline ${file.name} for comparison.`);
+    }
+  }
+
+  function downloadCompletedCsv() {
+    const tableToExport = mode === "clean" ? cleanedResult.cleaned : primaryTable;
+    const csv = toCsvString(tableToExport);
+    const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `corporatebuddy_excelos_${Date.now()}.csv`;
+    a.click();
+    URL.revokeObjectURL(url);
+    setStatusBanner("Downloaded completed workbook copy (original untouched).");
+  }
+
+  async function saveReusableWorkflow() {
+    const wf: SavedExcelWorkflow = {
+      id: `wf-${Date.now()}`,
+      name: workflowName.trim() || "Saved ExcelOS Workflow",
+      mode,
+      prompt: instruction,
+      keyColumn,
+      groupColumn,
+    };
+    setWorkflows((prev) => [wf, ...prev]);
+    try {
+      await fetch("/api/excel-os", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ workflow: wf }),
+      });
+      setStatusBanner(`Saved daily workflow "${wf.name}".`);
+    } catch {
+      setStatusBanner(`Saved workflow "${wf.name}" locally.`);
+    }
+  }
+
+  async function copyManagementDraft() {
+    try {
+      await navigator.clipboard.writeText(managementDraft);
+      setCopiedDraft(true);
+      setTimeout(() => setCopiedDraft(false), 2000);
+    } catch {
+      // ignore clipboard restrictions
+    }
+  }
+
+  return (
+    <main className="min-h-screen bg-slate-50 text-slate-900 p-4 sm:p-6">
+      <div className="mx-auto max-w-6xl space-y-6">
+        <header className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm flex flex-wrap items-center justify-between gap-4">
+          <div>
+            <p className="text-xs font-bold uppercase tracking-wider text-[#0f294a]">
+              CorporateBuddy · AI Spreadsheet Assistant
+            </p>
+            <h1 className="text-xl font-bold text-[#0b192c]">
+              ExcelOS — Your spreadsheet work, done faster.
+            </h1>
+            <p className="text-xs text-slate-500 mt-0.5">{statusBanner}</p>
+          </div>
+          <div className="flex flex-wrap items-center gap-2">
+            <button
+              type="button"
+              onClick={downloadCompletedCsv}
+              className="rounded-xl bg-[#0f294a] px-4 py-2 text-xs font-semibold text-white hover:bg-[#163863] cursor-pointer"
+            >
+              Download Completed Report
+            </button>
+          </div>
+        </header>
+
+        {/* Simple Entry Card matching ExcelOS concept */}
+        <section className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm space-y-4">
+          <div className="flex flex-wrap gap-2">
+            {[
+              ["command", "AI Excel Command"],
+              ["clean", "Clean Data"],
+              ["compare", "Compare Files"],
+              ["report", "Generate Report"],
+              ["formula", "Build Formula"],
+            ].map(([id, label]) => (
+              <button
+                key={id}
+                type="button"
+                onClick={() => setMode(id as ExcelOsMode)}
+                className={`rounded-xl px-3.5 py-1.5 text-xs font-semibold cursor-pointer ${
+                  mode === id
+                    ? "bg-[#0f294a] text-white"
+                    : "border border-slate-200 bg-slate-50 text-slate-700 hover:bg-slate-100"
+                }`}
+              >
+                {label}
+              </button>
+            ))}
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div className="space-y-2">
+              <label className="block text-xs font-semibold text-slate-700">
+                Attach Spreadsheet (.csv / .tsv / .xlsx text export)
+              </label>
+              <input
+                type="file"
+                accept=".csv,.tsv,.txt,.xlsx,.xls"
+                onChange={(e) => handleFileUpload(e, "primary")}
+                className="block w-full text-xs text-slate-600 file:mr-3 file:rounded-lg file:border-0 file:bg-slate-100 file:px-3 file:py-1.5 file:text-xs file:font-semibold"
+              />
+              <textarea
+                rows={5}
+                value={primaryText}
+                onChange={(e) => setPrimaryText(e.target.value)}
+                className="w-full rounded-xl border border-slate-200 p-2.5 font-mono text-[11px]"
+                placeholder="Paste CSV/TSV rows or upload spreadsheet..."
+              />
+            </div>
+
+            <div className="space-y-2">
+              <label className="block text-xs font-semibold text-slate-700">
+                What do you want to do with your Excel file?
+              </label>
+              <textarea
+                rows={5}
+                value={instruction}
+                onChange={(e) => setInstruction(e.target.value)}
+                className="w-full rounded-xl border border-slate-200 p-2.5 text-xs"
+                placeholder="e.g. Find employees below 90% productivity, identify pending cases older than 3 days, prepare a team-wise summary and highlight SLA risks."
+              />
+              <div className="grid grid-cols-2 gap-2 text-xs">
+                <input
+                  type="text"
+                  value={keyColumn}
+                  onChange={(e) => setKeyColumn(e.target.value)}
+                  placeholder="Unique Key (e.g. Case_ID)"
+                  className="rounded-lg border border-slate-200 px-2.5 py-1.5"
+                />
+                <input
+                  type="text"
+                  value={groupColumn}
+                  onChange={(e) => setGroupColumn(e.target.value)}
+                  placeholder="Group By (e.g. Team)"
+                  className="rounded-lg border border-slate-200 px-2.5 py-1.5"
+                />
+              </div>
+            </div>
+          </div>
+
+          {mode === "compare" && (
+            <div className="rounded-xl border border-slate-200 bg-slate-50 p-3 space-y-2">
+              <div className="flex flex-wrap items-center justify-between gap-2">
+                <span className="text-xs font-semibold text-slate-700">
+                  Yesterday / Baseline Report ({compareFileName})
+                </span>
+                <input
+                  type="file"
+                  accept=".csv,.tsv,.txt,.xlsx,.xls"
+                  onChange={(e) => handleFileUpload(e, "compare")}
+                  className="text-xs"
+                />
+              </div>
+              <textarea
+                rows={4}
+                value={compareText}
+                onChange={(e) => setCompareText(e.target.value)}
+                className="w-full rounded-lg border border-slate-200 bg-white p-2 font-mono text-[11px]"
+              />
+            </div>
+          )}
+        </section>
+
+        {/* Results Grid: Diagnostics, Comparison, Formula, Group Summary */}
+        <section className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+          <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm space-y-3">
+            <h2 className="text-xs font-bold uppercase tracking-wider text-slate-700">
+              Smart Data Cleaning & Diagnostics ({qualityFindings.length})
+            </h2>
+            {qualityFindings.length === 0 ? (
+              <p className="text-xs text-slate-500">No missing cells, duplicates, or extra spaces detected.</p>
+            ) : (
+              <ul className="space-y-2 text-xs">
+                {qualityFindings.map((f, idx) => (
+                  <li key={idx} className="rounded-xl border border-slate-100 bg-slate-50 p-2.5">
+                    <p className="font-semibold text-[#0b192c]">
+                      {f.type} · {f.column} ({f.count})
+                    </p>
+                    <p className="text-slate-600 mt-0.5">{f.proposedFix}</p>
+                  </li>
+                ))}
+              </ul>
+            )}
+          </div>
+
+          <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm space-y-3">
+            <h2 className="text-xs font-bold uppercase tracking-wider text-slate-700">
+              Report Rollup ({groupColumn}) & SLA Exceptions
+            </h2>
+            <div className="flex flex-wrap gap-2 text-xs">
+              {groupRollup.map((g) => (
+                <span
+                  key={g.group}
+                  className="rounded-lg border border-slate-200 bg-slate-50 px-2.5 py-1 font-medium"
+                >
+                  {g.group}: <strong>{g.count}</strong> ({g.pct}%)
+                </span>
+              ))}
+            </div>
+            <p className="text-xs text-slate-700">
+              Flagged SLA / Threshold Exceptions: <strong>{exceptionRows.length}</strong> of{" "}
+              {primaryTable.rows.length} rows
+            </p>
+          </div>
+
+          <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm space-y-2">
+            <h2 className="text-xs font-bold uppercase tracking-wider text-slate-700">
+              Comparison Intelligence (Key: {diffSummary.keyColumn})
+            </h2>
+            <div className="grid grid-cols-4 gap-2 text-center text-xs">
+              <div className="rounded-lg bg-emerald-50 p-2">
+                <p className="text-slate-500">New</p>
+                <p className="font-bold text-emerald-700">{diffSummary.newCount}</p>
+              </div>
+              <div className="rounded-lg bg-amber-50 p-2">
+                <p className="text-slate-500">Changed</p>
+                <p className="font-bold text-amber-700">{diffSummary.changedCount}</p>
+              </div>
+              <div className="rounded-lg bg-rose-50 p-2">
+                <p className="text-slate-500">Removed</p>
+                <p className="font-bold text-rose-700">{diffSummary.removedCount}</p>
+              </div>
+              <div className="rounded-lg bg-slate-100 p-2">
+                <p className="text-slate-500">Same</p>
+                <p className="font-bold text-slate-700">{diffSummary.unchangedCount}</p>
+              </div>
+            </div>
+            {diffSummary.samples.length > 0 && (
+              <ul className="text-[11px] text-slate-600 space-y-1 pt-1">
+                {diffSummary.samples.map((s, i) => (
+                  <li key={i}>• {s}</li>
+                ))}
+              </ul>
+            )}
+          </div>
+
+          <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm space-y-2">
+            <h2 className="text-xs font-bold uppercase tracking-wider text-slate-700">
+              AI Formula Builder & Explainer
+            </h2>
+            <pre className="rounded-xl bg-slate-900 text-slate-100 p-2.5 text-xs overflow-x-auto">
+              {formulaHelp.primaryFormula}
+            </pre>
+            <p className="text-xs text-slate-600">{formulaHelp.explanation}</p>
+            <p className="text-[11px] text-slate-500">
+              Compatible variant: <code className="font-mono">{formulaHelp.compatibleVariant}</code> ·{" "}
+              {formulaHelp.whereToApply}
+            </p>
+          </div>
+        </section>
+
+        {/* Reusable Daily Automation & Management Email/MOM Output */}
+        <section className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+          <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm space-y-3">
+            <h2 className="text-xs font-bold uppercase tracking-wider text-slate-700">
+              Daily Report Automation (Reusable Workflows)
+            </h2>
+            <div className="flex flex-wrap gap-2">
+              <input
+                type="text"
+                value={workflowName}
+                onChange={(e) => setWorkflowName(e.target.value)}
+                placeholder="Workflow name"
+                className="flex-1 rounded-xl border border-slate-200 px-3 py-1.5 text-xs"
+              />
+              <button
+                type="button"
+                onClick={saveReusableWorkflow}
+                className="rounded-xl bg-[#0f294a] px-3.5 py-1.5 text-xs font-semibold text-white cursor-pointer"
+              >
+                Save Workflow
+              </button>
+            </div>
+            <div className="space-y-1.5 max-h-44 overflow-y-auto">
+              {workflows.map((wf) => (
+                <div
+                  key={wf.id}
+                  className="flex items-center justify-between gap-2 rounded-xl border border-slate-100 bg-slate-50 px-3 py-2 text-xs"
+                >
+                  <div>
+                    <p className="font-semibold text-[#0b192c]">{wf.name}</p>
+                    <p className="text-[11px] text-slate-500 line-clamp-1">{wf.prompt}</p>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setMode(wf.mode);
+                      setInstruction(wf.prompt);
+                      setKeyColumn(wf.keyColumn);
+                      setGroupColumn(wf.groupColumn);
+                      setStatusBanner(`Loaded workflow "${wf.name}".`);
+                    }}
+                    className="rounded-lg border border-slate-300 bg-white px-2.5 py-1 text-[11px] font-semibold cursor-pointer"
+                  >
+                    Run
+                  </button>
+                </div>
+              ))}
+            </div>
+          </div>
+
+          <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm space-y-3">
+            <div className="flex items-center justify-between">
+              <h2 className="text-xs font-bold uppercase tracking-wider text-slate-700">
+                Management Summary / Email & MOM Draft
+              </h2>
+              <button
+                type="button"
+                onClick={copyManagementDraft}
+                className="rounded-lg border border-slate-300 bg-white px-2.5 py-1 text-xs font-semibold cursor-pointer"
+              >
+                {copiedDraft ? "Copied" : "Copy Draft"}
+              </button>
+            </div>
+            <pre className="rounded-xl border border-slate-100 bg-slate-50 p-3 text-xs whitespace-pre-wrap text-slate-800">
+              {managementDraft}
+            </pre>
+          </div>
+        </section>
+      </div>
+    </main>
+  );
+}

@@ -1,26 +1,59 @@
-@import "tailwindcss";
+﻿@import "tailwindcss";
 
-:root {
-  --background: #ffffff;
-  --foreground: #171717;
-}
-
-@theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
-}
-
-@media (prefers-color-scheme: dark) {
+@layer base {
   :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
+    --bg-canvas: #f5f7fb;
+    --ink-primary: #0b192c;
+    --ink-secondary: #475569;
+    --accent-navy: #0f294a;
+    --accent-cobalt: #1d4ed8;
+    --accent-teal: #0f766e;
   }
 }
 
-body {
-  background: var(--background);
-  color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+.font-sans {
+  font-family: var(--font-inter), system-ui, -apple-system, sans-serif;
+}
+
+.font-display {
+  font-family: var(--font-jakarta), var(--font-inter), system-ui, sans-serif;
+}
+
+.bg-canvas {
+  background-color: var(--bg-canvas);
+  background-image:
+    radial-gradient(circle at 10% 6%, rgba(29, 78, 216, 0.08), transparent 34%),
+    radial-gradient(circle at 90% 12%, rgba(15, 118, 110, 0.07), transparent 36%),
+    linear-gradient(to right, rgba(15, 41, 74, 0.04) 1px, transparent 1px),
+    linear-gradient(to bottom, rgba(15, 41, 74, 0.04) 1px, transparent 1px);
+  background-size: 100% 100%, 100% 100%, 42px 42px, 42px 42px;
+}
+
+.corporate-card {
+  background: rgba(255, 255, 255, 0.94);
+  backdrop-filter: blur(10px);
+  border: 1px solid rgba(15, 41, 74, 0.09);
+  box-shadow:
+    0 2px 6px rgba(11, 25, 44, 0.04),
+    0 14px 30px -14px rgba(11, 25, 44, 0.12);
+  transition:
+    transform 200ms cubic-bezier(0.22, 1, 0.36, 1),
+    box-shadow 200ms cubic-bezier(0.22, 1, 0.36, 1),
+    border-color 200ms ease;
+}
+
+.corporate-card:hover {
+  transform: translateY(-4px);
+  border-color: rgba(29, 78, 216, 0.28);
+  box-shadow:
+    0 8px 18px -6px rgba(11, 25, 44, 0.09),
+    0 24px 44px -16px rgba(15, 41, 74, 0.18);
+}
+
+.floating-panel {
+  background: #ffffff;
+  border: 1px solid rgba(15, 41, 74, 0.1);
+  box-shadow:
+    0 22px 48px -22px rgba(11, 25, 44, 0.22),
+    0 4px 12px -2px rgba(11, 25, 44, 0.05);
 }
