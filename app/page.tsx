@@ -843,7 +843,7 @@ export default function HomePage() {
                 onClick={() => setActiveView("highway")}
                 className="rounded-lg bg-[#0f294a] px-3.5 py-2 text-xs sm:text-sm font-medium text-white hover:bg-[#163863] transition-colors cursor-pointer"
               >
-                Website Highway
+                How its work
               </button>
             )}
           </div>
@@ -859,7 +859,7 @@ export default function HomePage() {
             <div className="grid grid-cols-2 lg:grid-cols-1 gap-1.5 text-sm font-medium">
               {[
                 ["home", "Home"],
-                ["highway", "Website Highway"],
+                ["highway", "How its work"],
                 ["salary", "Salary"],
                 ["holidays", "Holidays"],
                 ["email", "Email"],
