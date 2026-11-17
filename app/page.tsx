@@ -194,7 +194,7 @@ function buildItrHorizonRows(annualBaseAmount: number, annualReturnPct: number) 
 export default function HomePage() {
   const [activeView, setActiveView] = useState<
     "home" | "salary" | "holidays" | "email" | "mom" | "notes" | "docs" | "tax" | "shift" | "presentos" | "growthos" | "changeos"
-  >("home");
+   | "highway">("home");
   const [moduleCategoryFilter, setModuleCategoryFilter] = useState<"all" | "pay" | "docs" | "ops">("all");
   const [quickPrompt, setQuickPrompt] = useState("");
   const openExcelOS = () => {
@@ -674,7 +674,42 @@ export default function HomePage() {
       mainRef.current.scrollIntoView({ behavior: "smooth", block: "start" });
     }
   }, [activeView]);
+  const [highwayProgress, setHighwayProgress] = useState<number>(8);
+  const highwayTrackRef = useRef<HTMLDivElement | null>(null);
+  useEffect(() => {
+    if (activeView !== "highway") return;
+    const onScroll = () => {
+      const el = highwayTrackRef.current;
+      if (!el) return;
+      const rect = el.getBoundingClientRect();
+      const viewportH = window.innerHeight || 800;
+      const total = Math.max(1, rect.height - viewportH * 0.45);
+      const traveled = Math.min(total, Math.max(0, -rect.top + viewportH * 0.2));
+      const pct = Math.min(100, Math.max(6, Math.round((traveled / total) * 100)));
+      setHighwayProgress(pct);
+    };
+    onScroll();
+    window.addEventListener("scroll", onScroll, { passive: true });
+    window.addEventListener("resize", onScroll);
+    return () => {
+      window.removeEventListener("scroll", onScroll);
+      window.removeEventListener("resize", onScroll);
+    };
+  }, [activeView]);
 
+  const highwayStops = [
+    { km: "KM 01", modId: "salary-calculator", viewTarget: "salary", number: "01", title: "CTC & In-Hand Salary Calculator", tag: "Pay & Tax", input: "Annual CTC, State, FY, PF mode & Tax Regime", output: "Basic/HRA split, Employee & Employer PF, PT, TDS, Monthly In-Hand & Annual Take-Home", howToUse: "Enter your CTC or send extracted CTC from Docs, switch Quick/Detailed mode or PF rule, and copy the summary." },
+    { km: "KM 02", modId: "holiday-planner", viewTarget: "holidays", number: "02", title: "State Holiday Calendar & Leave Planner", tag: "Daily Ops", input: "Indian State/UT & Workweek Pattern (5-day / 6-day)", output: "State gazetted holidays, long-weekend bridge suggestions & leave policy notes", howToUse: "Pick your state and workweek pattern to spot natural holiday bridges before filing leave." },
+    { km: "KM 03", modId: "email-assistant", viewTarget: "email", number: "03", title: "Smart Email Assistant", tag: "Docs & AI", input: "Rough intent/prompt, thread context & tone (standard, polite, assertive, diplomatic, shorter)", output: "Send-ready corporate email draft with tone variants", howToUse: "Paste raw bullet points or thread context, choose a tone, refine, and copy." },
+    { km: "KM 04", modId: "meeting-minutes", viewTarget: "mom", number: "04", title: "Meeting Minutes (MOM) Generator", tag: "Docs & AI", input: "Rough meeting notes, template, title, attendees & date", output: "Structured MOM brief, action items, missing-info audit flags & Sticky Notes handoff", howToUse: "Drop rough call notes, pick a template, check missing-info flags, and send tasks to Sticky Notes." },
+    { km: "KM 05", modId: "sticky-notes", viewTarget: "notes", number: "05", title: "Advanced Sticky Notes", tag: "Daily Ops", input: "Quick note, due phrase, color tag & search/archive filters", output: "Pinned action-ready notes with extracted tasks, reminders & follow-up snippets", howToUse: "Jot quick reminders or import MOM actions, search/archive notes, and copy follow-ups." },
+    { km: "KM 06", modId: "document-summarizer", viewTarget: "docs", number: "06", title: "Offer Letter & Doc Summarizer", tag: "Docs & AI", input: "Offer letter, policy, or workplace document text/file", output: "Plain-English brief on pay split, notice/probation, recovery clauses & extracted CTC", howToUse: "Paste or upload a document, review the brief, and click Send CTC to Calculator if pay is detected." },
+    { km: "KM 07", modId: "tax-calendar", viewTarget: "tax", number: "07", title: "Indian Tax Calendar & Filing Guide", tag: "Pay & Tax", input: "Financial year, salary/expense check-ins & section tab", output: "CBDT deadlines, step-by-step salaried ITR guide, Form 16/AIS/26AS notes & regime comparison", howToUse: "Switch between Tax Saving Finder, Deadlines Assistant, and Tax Calendar tabs with synced figures." },
+    { km: "KM 08", modId: "shift-attendance", viewTarget: "shift", number: "08", title: "Shift & Attendance Tracker", tag: "Daily Ops", input: "Shift start/end, actual login/logout, breaks, grace mins, night window & monthly gross", output: "Actual hours, overtime, night-shift allowance, late/early punches, payable days, LOP & CSV export", howToUse: "Select a shift preset or enter punch times and export the payable-days log as CSV." },
+    { km: "KM 09", modId: "presentos", viewTarget: "presentos", number: "09", title: "PresentOS", tag: "Docs & AI", input: "Presentation prompt, notes, Excel/CSV/TXT file & theme template", output: "Storyline outline, editable slide preview, audit report & PPTX download", howToUse: "Describe your deck or upload a spreadsheet, pick a theme, edit slides, and export PPTX." },
+    { km: "KM 10", modId: "appraisal-promotion", viewTarget: "growthos", number: "10", title: "Appraisal & Promotion Assistant", tag: "Docs & AI", input: "Appraisal questions, work wins/achievements & tone style", output: "Evidence-grounded self-appraisal drafts & missing-evidence notes without invented metrics", howToUse: "Add your review prompts and real work wins, select tone, and copy grounded answers." },
+    { km: "KM 11", modId: "document-comparison", viewTarget: "changeos", number: "11", title: "Document Comparison & Process Change Intelligence", tag: "Docs & AI", input: "Previous document and updated document files", output: "Section-by-section diff register, coverage summary & change explanations", howToUse: "Upload both versions (previous and updated) to inspect exact clause/process diffs." },
+  ];
   function handleOpenModule(mod: ModuleItem) {
     if (mod.id === "salary-calculator") setActiveView("salary");
     else if (mod.id === "holiday-planner") setActiveView("holidays");
@@ -865,7 +900,69 @@ export default function HomePage() {
               </div>
           </aside>
           <main ref={mainRef} className="flex-1 min-w-0 lg:order-2 scroll-mt-24">
-        {activeView === "changeos" ? (
+                {activeView === "highway" ? (
+          <section ref={highwayTrackRef} className="space-y-6">
+            <div className="rounded-2xl border border-amber-300/80 bg-gradient-to-r from-[#0b192c] via-[#0f294a] to-[#133b2e] p-6 text-white shadow-md space-y-4">
+              <div className="flex flex-wrap items-center justify-between gap-3">
+                <span className="inline-flex items-center gap-2 rounded-full border border-amber-300/40 bg-amber-400/15 px-3 py-1 text-xs font-semibold text-amber-200">
+                  NH-CB · CorporateBuddy Indian Highway Tour
+                </span>
+                <span className="font-mono text-xs text-amber-200">Highway Stretched: {highwayProgress}%</span>
+              </div>
+              <h1 className="font-display text-2xl sm:text-3xl font-bold">How CorporateBuddy Works — End-to-End Highway</h1>
+              <p className="text-sm text-slate-200 max-w-3xl">
+                CorporateBuddy is an India-focused workplace suite built with Next.js App Router &amp; Tailwind CSS. Deterministic calculators (Salary, Holidays, Tax Calendar, Shift &amp; Attendance) run instant local math, while document and AI workspaces (Email, MOM, Sticky Notes, Docs, PresentOS, Appraisal, ChangeOS) structure briefs and fall back cleanly even without a Gemini API key.
+              </p>
+              <div className="space-y-1.5">
+                <div className="flex justify-between text-[11px] font-mono text-slate-300">
+                  <span>START · NH-00 GATEWAY</span>
+                  <span>CARDS 01 → 11 MILESTONES</span>
+                  <span>FINISH · FULL WORKSPACE</span>
+                </div>
+                <div className="relative h-5 w-full rounded-full bg-slate-900/90 border border-slate-700 overflow-hidden flex items-center px-1">
+                  <div className="h-2.5 rounded-full bg-gradient-to-r from-amber-500 via-white to-emerald-500 transition-all duration-150" style={{ width: `${highwayProgress}%` }} />
+                  <span className="ml-2 text-[10px] font-mono font-bold tracking-widest text-amber-300 whitespace-nowrap">NH-CB · {highwayProgress}%</span>
+                </div>
+              </div>
+            </div>
+            <div className="relative pl-6 sm:pl-10 space-y-6">
+              <div className="absolute left-2 sm:left-4 top-0 bottom-0 w-3 sm:w-4 rounded-full bg-slate-800 border-x-2 border-amber-400/80 overflow-hidden">
+                <div className="w-full bg-gradient-to-b from-amber-500 via-white to-emerald-500 transition-all duration-150" style={{ height: `${highwayProgress}%` }} />
+              </div>
+              {highwayStops.map((stop) => (
+                <article key={stop.modId} className="relative rounded-2xl border border-slate-200 bg-white p-5 sm:p-6 shadow-sm space-y-3">
+                  <div className="flex flex-wrap items-center justify-between gap-2">
+                    <div className="flex items-center gap-2.5">
+                      <span className="rounded-md border-2 border-slate-900 bg-amber-400 px-2.5 py-0.5 font-mono text-xs font-extrabold text-slate-950">
+                        {stop.km}
+                      </span>
+                      <span className="font-mono text-xs font-semibold text-slate-400">Card {stop.number}</span>
+                      <span className="rounded-full border border-slate-200 bg-slate-50 px-2.5 py-0.5 text-[11px] font-medium text-slate-700">{stop.tag}</span>
+                    </div>
+                    <button type="button" onClick={() => setActiveView(stop.viewTarget as typeof activeView)} className="rounded-lg bg-[#0f294a] px-3.5 py-1.5 text-xs font-semibold text-white hover:bg-[#163863] cursor-pointer">
+                      Open Card {stop.number} →
+                    </button>
+                  </div>
+                  <h2 className="font-display text-lg sm:text-xl font-bold text-[#0b192c]">{stop.title}</h2>
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-3 text-xs">
+                    <div className="rounded-xl border border-slate-200 bg-slate-50/80 p-3">
+                      <p className="font-semibold text-slate-900">What You Give (Input)</p>
+                      <p className="mt-1 text-slate-600">{stop.input}</p>
+                    </div>
+                    <div className="rounded-xl border border-slate-200 bg-slate-50/80 p-3">
+                      <p className="font-semibold text-slate-900">What You Get (Brief / Output)</p>
+                      <p className="mt-1 text-slate-600">{stop.output}</p>
+                    </div>
+                    <div className="rounded-xl border border-blue-200/80 bg-blue-50/50 p-3">
+                      <p className="font-semibold text-blue-950">How to Use It</p>
+                      <p className="mt-1 text-slate-700">{stop.howToUse}</p>
+                    </div>
+                  </div>
+                </article>
+              ))}
+            </div>
+          </section>
+        ) : activeView === "changeos" ? (
             <ChangeOsWorkspace />
           ) : activeView === "growthos" ? (
             <GrowthOsWorkspace />
