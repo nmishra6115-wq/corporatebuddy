@@ -840,10 +840,10 @@ export default function HomePage() {
             ) : (
               <button
                 type="button"
-                onClick={() => setActiveView("salary")}
+                onClick={() => setActiveView("highway")}
                 className="rounded-lg bg-[#0f294a] px-3.5 py-2 text-xs sm:text-sm font-medium text-white hover:bg-[#163863] transition-colors cursor-pointer"
               >
-                Open CTC Calculator
+                Website Highway
               </button>
             )}
           </div>
