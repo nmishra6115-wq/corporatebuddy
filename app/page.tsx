@@ -859,6 +859,7 @@ export default function HomePage() {
             <div className="grid grid-cols-2 lg:grid-cols-1 gap-1.5 text-sm font-medium">
               {[
                 ["home", "Home"],
+                ["highway", "Website Highway"],
                 ["salary", "Salary"],
                 ["holidays", "Holidays"],
                 ["email", "Email"],
