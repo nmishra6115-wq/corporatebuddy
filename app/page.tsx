@@ -3,7 +3,7 @@ import SiteFooter from "@/components/SiteFooter";
 import ChangeOsWorkspace from "@/components/ChangeOsWorkspace";
 import GrowthOsWorkspace from "@/components/GrowthOsWorkspace";
 
-import React, { useMemo, useState } from "react";
+import React, { useEffect, useMemo, useRef, useState } from "react";
 import {
   calculateHikePercentage,
   calculateSalary,
@@ -668,6 +668,13 @@ export default function HomePage() {
     }
   }
 
+  const mainRef = useRef<HTMLElement | null>(null);
+  useEffect(() => {
+    if (activeView !== "home" && mainRef.current) {
+      mainRef.current.scrollIntoView({ behavior: "smooth", block: "start" });
+    }
+  }, [activeView]);
+
   function handleOpenModule(mod: ModuleItem) {
     if (mod.id === "salary-calculator") setActiveView("salary");
     else if (mod.id === "holiday-planner") setActiveView("holidays");
@@ -857,7 +864,7 @@ export default function HomePage() {
                 <a href="/excel-os" className="block w-full text-center rounded-lg border border-blue-200 bg-blue-50/80 px-3 py-1.5 text-[11px] font-semibold text-blue-800 hover:bg-blue-100 transition-colors">Open /excel-os directly →</a>
               </div>
           </aside>
-          <main className="flex-1 min-w-0 lg:order-2">
+          <main ref={mainRef} className="flex-1 min-w-0 lg:order-2 scroll-mt-24">
         {activeView === "changeos" ? (
             <ChangeOsWorkspace />
           ) : activeView === "growthos" ? (
