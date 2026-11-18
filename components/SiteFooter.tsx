@@ -163,7 +163,7 @@ export default function SiteFooter({ onSelectView }: SiteFooterProps) {
           <p>Built for Indian corporate workflows · Advertising &amp; cookie disclosures included.</p>
         </div>
       </div>
-    <div class="py-2 text-center text-xs text-slate-500">Built with ? by Nitesh Mishra</div>
+    <div className="py-2 text-center text-xs text-slate-500">Built with ? by Nitesh Mishra</div>
 </footer>
   );
 }
