@@ -1,4 +1,5 @@
-﻿"use client";
+"use client";
+import UpdatesVaultWorkspace from "@/components/UpdatesVaultWorkspace";
 import SiteFooter from "@/components/SiteFooter";
 import ChangeOsWorkspace from "@/components/ChangeOsWorkspace";
 import GrowthOsWorkspace from "@/components/GrowthOsWorkspace";
@@ -108,7 +109,7 @@ const MODULES: ModuleItem[] = [
     accent: "bg-slate-100 text-slate-800 border-slate-200",
   },
   { id: "shift-attendance", number: "08", title: "Shift & Attendance Tracker", tag: "Shifts · Breaks · Payable Days", minimalInput: "Shift Timing + Breaks + Logs", briefOutput: "Actual hours, overtime, night-shift allowance, late/early punches, payable days, and estimated LOP.", accent: "bg-indigo-50 text-indigo-800 border-indigo-200/80" },
-  { id: "presentos", number: "09", title: "PresentOS", tag: "AI Presentation Studio", minimalInput: "Prompt, notes, Excel or report", briefOutput: "Storyline planning, editable slide outline preview, source-grounded structure, and executive presentation workflow.", accent: "bg-violet-50 text-violet-800 border-violet-200/80" },
+  { id: "presentos", number: "09", title: "Create PPT", tag: "AI Presentation Studio", minimalInput: "Prompt, notes, Excel or report", briefOutput: "Storyline planning, editable slide outline preview, source-grounded structure, and executive presentation workflow.", accent: "bg-violet-50 text-violet-800 border-violet-200/80" },
   { id: "appraisal-promotion", number: "10", title: "Appraisal & Promotion Assistant", tag: "Evidence-Grounded Review Drafts", minimalInput: "Review questions + work wins", briefOutput: "Structured self-appraisal answers, promotion impact framing, and missing-evidence notes without invented metrics.", accent: "bg-blue-50 text-blue-800 border-blue-200/80" },
   { id: "document-comparison", number: "11", title: "Document Comparison & Process Change Intelligence", tag: "Section Diff + Source Citations", minimalInput: "Previous & updated doc versions", briefOutput: "Section-by-section change register, exact before/after diffs, source page/section references, and CSV export.", accent: "bg-teal-50 text-teal-800 border-teal-200/80" },
 ];
@@ -193,7 +194,7 @@ function buildItrHorizonRows(annualBaseAmount: number, annualReturnPct: number) 
 
 export default function HomePage() {
   const [activeView, setActiveView] = useState<
-    "home" | "salary" | "holidays" | "email" | "mom" | "notes" | "docs" | "tax" | "shift" | "presentos" | "growthos" | "changeos"
+    "home" | "salary" | "holidays" | "email" | "mom" | "notes" | "docs" | "tax" | "shift" | "presentos" | "growthos" | "changeos" | "vault"
    | "highway">("home");
   const [moduleCategoryFilter, setModuleCategoryFilter] = useState<"all" | "pay" | "docs" | "ops">("all");
   const [quickPrompt, setQuickPrompt] = useState("");
@@ -706,7 +707,7 @@ export default function HomePage() {
     { km: "KM 06", modId: "document-summarizer", viewTarget: "docs", number: "06", title: "Offer Letter & Doc Summarizer", tag: "Docs & AI", input: "Offer letter, policy, or workplace document text/file", output: "Plain-English brief on pay split, notice/probation, recovery clauses & extracted CTC", howToUse: "Paste or upload a document, review the brief, and click Send CTC to Calculator if pay is detected." },
     { km: "KM 07", modId: "tax-calendar", viewTarget: "tax", number: "07", title: "Indian Tax Calendar & Filing Guide", tag: "Pay & Tax", input: "Financial year, salary/expense check-ins & section tab", output: "CBDT deadlines, step-by-step salaried ITR guide, Form 16/AIS/26AS notes & regime comparison", howToUse: "Switch between Tax Saving Finder, Deadlines Assistant, and Tax Calendar tabs with synced figures." },
     { km: "KM 08", modId: "shift-attendance", viewTarget: "shift", number: "08", title: "Shift & Attendance Tracker", tag: "Daily Ops", input: "Shift start/end, actual login/logout, breaks, grace mins, night window & monthly gross", output: "Actual hours, overtime, night-shift allowance, late/early punches, payable days, LOP & CSV export", howToUse: "Select a shift preset or enter punch times and export the payable-days log as CSV." },
-    { km: "KM 09", modId: "presentos", viewTarget: "presentos", number: "09", title: "PresentOS", tag: "Docs & AI", input: "Presentation prompt, notes, Excel/CSV/TXT file & theme template", output: "Storyline outline, editable slide preview, audit report & PPTX download", howToUse: "Describe your deck or upload a spreadsheet, pick a theme, edit slides, and export PPTX." },
+    { km: "KM 09", modId: "presentos", viewTarget: "presentos", number: "09", title: "Create PPT", tag: "Docs & AI", input: "Presentation prompt, notes, Excel/CSV/TXT file & theme template", output: "Storyline outline, editable slide preview, audit report & PPTX download", howToUse: "Describe your deck or upload a spreadsheet, pick a theme, edit slides, and export PPTX." },
     { km: "KM 10", modId: "appraisal-promotion", viewTarget: "growthos", number: "10", title: "Appraisal & Promotion Assistant", tag: "Docs & AI", input: "Appraisal questions, work wins/achievements & tone style", output: "Evidence-grounded self-appraisal drafts & missing-evidence notes without invented metrics", howToUse: "Add your review prompts and real work wins, select tone, and copy grounded answers." },
     { km: "KM 11", modId: "document-comparison", viewTarget: "changeos", number: "11", title: "Document Comparison & Process Change Intelligence", tag: "Docs & AI", input: "Previous document and updated document files", output: "Section-by-section diff register, coverage summary & change explanations", howToUse: "Upload both versions (previous and updated) to inspect exact clause/process diffs." },
   ];
@@ -723,6 +724,14 @@ export default function HomePage() {
     else if (mod.id === "appraisal-promotion") setActiveView("growthos");
     else if (mod.id === "document-comparison") setActiveView("changeos");
   }
+              <button
+                type="button"
+                onClick={() => setActiveView("vault")}
+                className={`flex items-center justify-between rounded-xl px-3 py-2 text-left transition-all cursor-pointer ${activeView === "vault" ? "bg-[#0f294a] text-white font-semibold shadow-xs" : "text-slate-700 hover:bg-slate-100 hover:text-[#0b192c]"}`}
+              >
+                <span>Huddle & MOM Hub</span>
+                <span className="text-[11px] opacity-60">?</span>
+              </button>
 
   async function handleCopySummary() {
     const text = [
@@ -859,17 +868,18 @@ export default function HomePage() {
             <div className="grid grid-cols-2 lg:grid-cols-1 gap-1.5 text-sm font-medium">
               {[
                 ["home", "Home"],
-                ["salary", "Salary"],
-                ["holidays", "Holidays"],
-                ["email", "Email"],
-                ["mom", "MOM"],
-                ["notes", "Notes"],
-                ["docs", "Docs"],
-                ["tax", "Tax"],
+                ["salary", "CTC & In-Hand Salary Calculator"],
+                ["holidays", "Holiday Calendar & Leave Planner"],
+                ["email", "Smart Email Assistant"],
+                ["mom", "Meeting Minutes (MOM) Generator"],
+                ["notes", "Advanced Sticky Notes"],
+                ["docs", "Offer Letter & Document Summarizer"],
+                ["tax", "Tax Saving Opportunity Finder"],
                 ["shift", "Shift & Attendance Tracker"],
-                ["presentos", "PresentOS"],
+                ["presentos", "Create PPT"],
                   ["growthos", "Appraisal & Promotion Assistant"],
-                  ["changeos", "Document Comparison & Process Change Intelligence"],
+                  ["vault", "Huddle & MOM Hub"],
+            ["changeos", "Document Comparison & Process Change Intelligence"],
               ].map(([key, label]) => (
                 <button
                   key={key}
@@ -962,7 +972,9 @@ export default function HomePage() {
               ))}
             </div>
           </section>
-        ) : activeView === "changeos" ? (
+        ) : activeView === "vault" ? (
+            <UpdatesVaultWorkspace />
+          ) : activeView === "changeos" ? (
             <ChangeOsWorkspace />
           ) : activeView === "growthos" ? (
             <GrowthOsWorkspace />
@@ -2873,7 +2885,7 @@ export default function HomePage() {
 <section className="mx-auto max-w-6xl px-4 py-8 sm:px-6 lg:px-8 space-y-6">
             <div className="flex flex-wrap items-center justify-between gap-3">
               <div>
-                <h1 className="font-display text-2xl sm:text-3xl font-bold text-[#0b192c]">PresentOS</h1>
+                <h1 className="font-display text-2xl sm:text-3xl font-bold text-[#0b192c]">Create PPT</h1>
                 <p className="text-sm text-slate-600">One prompt in — executive slide layouts, KPIs, tables, speaker notes & editable .pptx out.</p>
               </div>
               <div className="flex items-center gap-2">
@@ -3097,8 +3109,3 @@ export default function HomePage() {
       </div>
   );
 }
-
-
-
-
-
